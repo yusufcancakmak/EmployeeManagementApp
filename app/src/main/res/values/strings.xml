@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">EmployeeManagementApp</string>
+    <string name="employee_management">Employee Managment</string>
+    <string name="name">Name</string>
+    <string name="position">Position</string>
+    <string name="mail">E-mail</string>
+    <string name="phone_number">Phone Number</string>
+    <string name="save">Save</string>
+    <string name="search">Search...</string>
+    <string name="adress">Adress</string>
+</resources>
