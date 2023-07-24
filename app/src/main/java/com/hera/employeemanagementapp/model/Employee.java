@@ -15,7 +15,6 @@ public class Employee {
 
     private String address;
 
-
     @PrimaryKey(autoGenerate = true)
     private int id;
 

@@ -21,14 +21,32 @@ import java.util.Arrays;
 import java.util.List;
 
 public class EmployeeAdapter extends ListAdapter<Employee, EmployeeAdapter.EmployeeViewHolder> {
+    private List<Employee> originalList;
 
     public EmployeeAdapter() {
         super(callback);
+        originalList = new ArrayList<>();
+    }
+
+    public void setOriginalData(List<Employee> employees) {
+        originalList.clear();
+        originalList.addAll(employees);
+        submitList(employees);
+        notifyDataSetChanged();
+
     }
 
     public void setFilteredData(List<Employee> employees) {
         submitList(employees);
 
+    }
+
+    public List<Employee> getFilteredList() {
+        return new ArrayList<>(getCurrentList());
+    }
+
+    public void resetOriginalData() {
+        submitList(originalList);
     }
 
     private static final DiffUtil.ItemCallback<Employee> callback = new DiffUtil.ItemCallback<Employee>() {
@@ -43,8 +61,6 @@ public class EmployeeAdapter extends ListAdapter<Employee, EmployeeAdapter.Emplo
             boolean isPositionEqual = oldItem.getPosition().equals(newItem.getPosition());
             boolean isMailEqual = oldItem.getMail().equals(newItem.getMail());
             boolean isPhoneNumberEqual = oldItem.getPhone_number().equals(newItem.getPhone_number());
-
-            // Fotoğrafın güncellendiğini kontrol et
             boolean isPhotoEqual = Arrays.equals(oldItem.getPhoto(), newItem.getPhoto());
 
             return isNameEqual && isPositionEqual && isMailEqual && isPhoneNumberEqual && isPhotoEqual;

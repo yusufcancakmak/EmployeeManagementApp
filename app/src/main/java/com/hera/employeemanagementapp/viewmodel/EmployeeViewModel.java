@@ -21,9 +21,34 @@ public class EmployeeViewModel extends AndroidViewModel {
         employeeList = employyeRepository.getAllData();
     }
 
-    public void insert(Employee employee) {
+
+    public boolean insertIfEmployeeNotExists(Employee employee) {
+        String newEmployeeName = employee.getName();
+        String newEmployeeEmail = employee.getMail();
+        String newEmployeePhone = employee.getPhone_number();
+
+        List<Employee> allEmployees = employyeRepository.getAllData().getValue();
+
+
+        if (allEmployees != null) {
+            for (Employee existingEmployee : allEmployees) {
+
+                if (existingEmployee.getName().equalsIgnoreCase(newEmployeeName)||
+                        existingEmployee.getMail().equalsIgnoreCase(newEmployeeEmail) ||
+                        existingEmployee.getPhone_number().equalsIgnoreCase(newEmployeePhone)) {
+                    return false;
+                }
+            }
+        }
+
+
         employyeRepository.insertData(employee);
+        return true;
     }
+
+   /* public void insert(Employee employee) {
+        employyeRepository.insertData(employee);
+    }*/
 
     public void update(Employee employee) {
         employyeRepository.updateData(employee);

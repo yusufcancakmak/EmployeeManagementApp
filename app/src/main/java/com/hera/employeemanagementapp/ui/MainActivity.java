@@ -107,18 +107,25 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void filterList(String text) {
-        List<Employee> filterLsit = new ArrayList<>();
-        for (Employee employee : employeeAdapter.getCurrentList()) {
-            if (employee.getName().toLowerCase().contains(text.toLowerCase())) {
-                filterLsit.add(employee);
-            }
-        }
-        if (filterLsit.isEmpty()) {
-            Snackbar.make(binding.getRoot(), "No item found", Snackbar.LENGTH_SHORT).show();
+        if (text.isEmpty()) {
+            employeeAdapter.resetOriginalData();
         } else {
-            employeeAdapter.setFilteredData(filterLsit);
+            List<Employee> filteredList = new ArrayList<>();
+
+            List<Employee> fullList = employeeAdapter.getFilteredList();
+
+            for (Employee employee : fullList) {
+                if (employee.getName().toLowerCase().contains(text.toLowerCase())) {
+                    filteredList.add(employee);
+                }
+            }
+            if (filteredList.isEmpty()) {
+                Snackbar.make(binding.getRoot(), "No item found", Snackbar.LENGTH_SHORT).show();
+            }
+            employeeAdapter.setFilteredData(filteredList);
         }
     }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -132,8 +139,12 @@ public class MainActivity extends AppCompatActivity {
             byte[] photo = data.getByteArrayExtra(Constans.Key_image);
             String address = data.getStringExtra(Constans.Key_adress);
             Employee employee = new Employee(name, position, mail, phone, photo, address);
-            employeeViewModel.insert(employee);
-            Snackbar.make(binding.getRoot(), "Employye Added", Snackbar.LENGTH_SHORT).show();
+            boolean isInserted = employeeViewModel.insertIfEmployeeNotExists(employee);
+            if (isInserted) {
+                Snackbar.make(binding.getRoot(), "Employee Added", Snackbar.LENGTH_SHORT).show();
+            } else {
+                Snackbar.make(binding.getRoot(), "Employee with the same data already exists", Snackbar.LENGTH_SHORT).show();
+            }
         } else if (requestCode == 2) {
             String name = data.getStringExtra(Constans.Key_name);
             String position = data.getStringExtra(Constans.Key_position);
@@ -145,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
             updatedEmployee.setId(data.getIntExtra(Constans.Key_id, 0));
             employeeViewModel.update(updatedEmployee);
             employeeAdapter.updateEmployee(updatedEmployee);
+            employeeAdapter.notifyDataSetChanged();
             Snackbar.make(binding.getRoot(), "Employye Updated", Snackbar.LENGTH_SHORT).show();
 
         }
@@ -156,6 +168,12 @@ public class MainActivity extends AppCompatActivity {
         binding.rvDashboard.setHasFixedSize(true);
         employeeAdapter = new EmployeeAdapter();
         binding.rvDashboard.setAdapter(employeeAdapter);
+        employeeViewModel.getAllEmployee().observe(this, new Observer<List<Employee>>() {
+            @Override
+            public void onChanged(List<Employee> employees) {
+                employeeAdapter.setOriginalData(employees);
+            }
+        });
     }
 
     public void initControl() {
@@ -163,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
         binding.searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
+
                 return false;
             }
 

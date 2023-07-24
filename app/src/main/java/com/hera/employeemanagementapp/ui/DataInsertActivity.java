@@ -1,5 +1,4 @@
 package com.hera.employeemanagementapp.ui;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -20,6 +19,8 @@ import android.view.View;
 import android.widget.Toast;
 import com.hera.employeemanagementapp.databinding.ActivityDataInsertBinding;
 import com.hera.employeemanagementapp.helper.Constans;
+import com.hera.employeemanagementapp.local.EmployyeDao;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
@@ -28,26 +29,32 @@ public class DataInsertActivity extends AppCompatActivity {
     private byte[] photoPath;
     private byte[] oldPhotoPath;
 
-
-    private ActivityResultLauncher<Intent> activityResultContract = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-        Bundle extras = result.getData().getExtras();
-        if (extras != null) {
-            Bitmap photoBitmap = (Bitmap) extras.get("data");
-            binding.saveImage.setImageBitmap(photoBitmap);
-            ByteArrayOutputStream stream = new ByteArrayOutputStream();
-            photoBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-            photoPath = stream.toByteArray();
-        }
-    });
-    private ActivityResultLauncher<String> activityResultContract2 = registerForActivityResult(new ActivityResultContracts.RequestPermission(), result -> {
-        if (result) {
-            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            activityResultContract.launch(takePictureIntent);
-
+    private ActivityResultLauncher<Intent> galleryLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
+            Uri selectedImage = result.getData().getData();
+            try {
+                Bitmap photoBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), selectedImage);
+                compressAndSetImage(photoBitmap);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         } else {
-            Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Image selection canceled", Toast.LENGTH_SHORT).show();
         }
     });
+
+    private ActivityResultLauncher<Intent> cameraLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+        if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+            Bundle extras = result.getData().getExtras();
+            if (extras != null) {
+                Bitmap photoBitmap = (Bitmap) extras.get("data");
+                compressAndSetImage(photoBitmap);
+            }
+        } else {
+            Toast.makeText(this, "Camera closed", Toast.LENGTH_SHORT).show();
+        }
+    });
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,12 +104,20 @@ public class DataInsertActivity extends AppCompatActivity {
             binding.saveBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    String name = binding.etName.getText().toString().trim();
                     Intent intent = new Intent();
                     intent.putExtra(Constans.Key_name, binding.etName.getText().toString());
                     intent.putExtra(Constans.Key_position, binding.etPosition.getText().toString());
                     intent.putExtra(Constans.Key_mail, binding.etMail.getText().toString());
                     intent.putExtra(Constans.Key_phone, binding.etPhone.getText().toString());
                     intent.putExtra(Constans.Key_adress, binding.etAdress.getText().toString());
+
+                    if (name.isEmpty()) {
+                        Toast.makeText(DataInsertActivity.this, "Please enter name", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+
                     if (photoPath != null) {
                         intent.putExtra(Constans.Key_image, photoPath);
                     }
@@ -111,12 +126,12 @@ public class DataInsertActivity extends AppCompatActivity {
                 }
             });
 
+
         }
 
         binding.saveImage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // Kamera veya galeri seçimi için bir diyalog göster
                 AlertDialog.Builder builder = new AlertDialog.Builder(DataInsertActivity.this);
                 builder.setTitle("Select Image Source");
                 builder.setItems(new CharSequence[]{"Camera", "Gallery"}, new DialogInterface.OnClickListener() {
@@ -124,13 +139,18 @@ public class DataInsertActivity extends AppCompatActivity {
                     public void onClick(DialogInterface dialogInterface, int i) {
                         switch (i) {
                             case 0:
-                                activityResultContract2.launch(Manifest.permission.CAMERA);
+                                if (ContextCompat.checkSelfPermission(DataInsertActivity.this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                                    cameraLauncher.launch(new Intent(MediaStore.ACTION_IMAGE_CAPTURE));
+                                } else {
+                                    ActivityCompat.requestPermissions(DataInsertActivity.this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+                                }
+
                                 /* requestCameraPermission();*/
                                 break;
                             case 1:
-                                // Galeri uygulamasını başlat
                                 Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                                startActivityForResult(intent, 1);
+                                /*startActivityForResult(intent, 1);*/
+                                galleryLauncher.launch(intent);
                                 break;
                         }
                     }
@@ -154,7 +174,7 @@ public class DataInsertActivity extends AppCompatActivity {
                 openCamera();
             } else {
 
-                Toast.makeText(this, "Kamera izni reddedildi", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -166,34 +186,18 @@ public class DataInsertActivity extends AppCompatActivity {
             startActivityForResult(takePictureIntent, 2);
         }
     }
+    private void compressAndSetImage(Bitmap photoBitmap) {
+        int quality = 50;
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        photoBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
+        photoPath = stream.toByteArray();
+        binding.saveImage.setImageBitmap(photoBitmap);
 
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1 && resultCode == RESULT_OK && data != null && data.getData() != null) {
-
-            Uri selectedImage = data.getData();
-            try {
-                Bitmap photoBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), selectedImage);
-                binding.saveImage.setImageBitmap(photoBitmap);
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                photoBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                photoPath = stream.toByteArray();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else if (requestCode == 2 && resultCode == RESULT_OK && data != null) {
-            Bundle extras = data.getExtras();
-            if (extras != null) {
-                Bitmap photoBitmap = (Bitmap) extras.get("data");
-                binding.saveImage.setImageBitmap(photoBitmap);
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                photoBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                photoPath = stream.toByteArray();
-            }
-        }
     }
+
+
+
+
 
 
     @Override
